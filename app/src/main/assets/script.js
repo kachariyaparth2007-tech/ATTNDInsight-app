@@ -170,7 +170,7 @@ const firebaseConfig = {
     messagingSenderId: " your value ",
     appId: " your value "
 
-    // download ATTND from my github : https://github.com/DevganiyaNirbhay/Attendance-App 
+    // download ATTND from my github : https://github.com/kachariyaparth2007-tech/Attendance-App 
     // and get google-services.jason file from this project and you can see above your value , but you need to register ATTND app in firebase  
 };
 
