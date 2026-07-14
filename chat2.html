@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
+
+
+    <title>P2P Connect (Firebase)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="chat2.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <script src="https://unpkg.com/mic-recorder-to-mp3@2.2.2/dist/index.min.js"></script>
+<script type="module">
+
+
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    // 1. Yahan 'setDoc' add kiya hai import list mein
+    import { getFirestore, collection, addDoc, query, where, onSnapshot, orderBy, updateDoc, doc, deleteDoc, serverTimestamp, setDoc , getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyDjzJAMte4cSZ9d1xFSAryPHjfv02HOcCA",
+        authDomain: "chat-app-3d17a.firebaseapp.com",
+        projectId: "chat-app-3d17a",
+        storageBucket: "chat-app-3d17a.appspot.com",
+        messagingSenderId: "760406303103",
+        appId: "1:760406303103:web:a01ec9ec3540ca82907a4a"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    window.db = getFirestore(app);
+    
+    // 2. Yahan 'setDoc' export kiya hai taaki app.js use kar sake
+    window.fs = { 
+        collection, addDoc, query, where, onSnapshot, orderBy, updateDoc, doc, deleteDoc, serverTimestamp, setDoc, getDocs
+    };
+    
+    console.log("Firebase initialized with setDoc");
+</script>
+
+</head>
+
+<body>
+    <audio id="sound-send" src="data:audio/mp3;base64,//NExAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//NExAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//NExAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//NExAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//NExAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//NExAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"></audio>
+    <audio id="sound-receive" src="data:audio/mp3;base64,//NExAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//NExAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"></audio>
+
+    <main class="content-wrapper">
+        
+        <div id="view-chat-list" class="view active">
+            <div id="header-selection" class="selection-mode" style="display: none;">
+    <div class="header-top-row">
+        <div style="display:flex; align-items:center;">
+            <button class="icon-btn-ghost" onclick="exitSelectionMode()">
+                <span class="material-icons-round" style="color: white;">arrow_back</span>
+            </button>
+            <span id="selection-count" style="color: white; font-weight: 600; font-size: 18px; margin-left: 10px;">0</span>
+        </div>
+        
+        <div style="display: flex; gap: 5px; margin-left: auto;">
+            <button id="btn-sel-pin" class="icon-btn-ghost" onclick="togglePinChats()">
+                <span class="material-icons-round" style="color: white;">push_pin</span>
+            </button>
+            <button id="btn-sel-edit" class="icon-btn-ghost" onclick="openRenameModal()">
+                <span class="material-icons-round" style="color: white;">edit</span>
+            </button>
+            <button id="btn-sel-delete" class="icon-btn-ghost" onclick="deleteSelectedChats()">
+                <span class="material-icons-round" style="color: white;">delete</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+
+<div id="header-main" class="main-header">
+   <div class="header-top-row">
+       <h1 class="page-title">CHATS</h1>
+       <button class="icon-btn-ghost" onclick="openSettings()">
+           <span class="material-icons-round">settings</span>
+       </button>
+   </div>
+   <div class="search-container">
+       <span class="material-icons-round search-icon">search</span>
+       <input type="text" placeholder="Search..." id="search-chat">
+   </div>
+</div>
+
+
+           <div id="chat-list-container"></div>
+
+            
+            <button class="fab-gradient" id="main-fab" onclick="toggleAddContactModal()">
+                <span class="material-icons-round">add</span>
+            </button>
+        </div>
+
+        <div id="view-status" class="view">
+            <div class="main-header">
+                <h1 class="page-title">My Profile</h1>
+            </div>
+            
+            <div class="status-card">
+                <div class="my-avatar-large" onclick="document.getElementById('avatar-input').click()">
+                    <img id="my-avatar-img" src="" style="display:none;">
+                    <span class="material-icons-round" id="default-avatar-icon">person</span>
+                    <div class="edit-badge"><span class="material-icons-round" style="font-size:14px">edit</span></div>
+                </div>
+                <input type="file" id="avatar-input" hidden accept="image/*" onchange="updateProfileAvatar(this.files)">
+                <div id="avatar-upload-status" 
+     style="margin-top:8px; font-size:14px; color:#4F75FE; display:none;">
+    Uploading...
+</div>
+                <div class="edit-name-container">
+                    <input type="text" id="my-name-input" value="My Name" onblur="updateProfileName(this.value)" placeholder="Enter name">
+                </div>
+
+                <p id="my-id-display">Loading ID...</p>
+                <div class="status-badge">Online</div>
+            </div>
+            
+            <div class="info-list">
+                <div class="info-item">
+                     <span class="material-icons-round icon-blue">cloud_done</span>
+                    <div>
+                        <strong>Cloud Status</strong>
+                        <div id="status-text" style="color: var(--primary)">Sync Active</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+<div id="view-chat-info" class="view slide-view" style="background: #F5F7FB;">
+    
+    <div class="main-header" style="padding-bottom: 15px;">
+        <div class="header-top-row">
+            <button class="icon-btn-ghost" onclick="closeChatInfo()">
+                <span class="material-icons-round" style="color: white;">arrow_back</span>
+            </button>
+            <h1 class="page-title" style="font-size: 18px;">Contact Info</h1>
+            <div style="width: 32px;"></div> </div>
+    </div>
+
+    <div class="chat-info-content">
+        
+        <div class="ci-profile-card">
+            <img id="ci-avatar" src="" class="ci-avatar-img">
+            <div id="ci-no-avatar" class="ci-avatar-placeholder">U</div>
+            <h2 id="ci-name">User Name</h2>
+            <p id="ci-id">ID: 12345</p>
+        </div>
+
+        <div class="ci-tabs">
+            <div class="ci-tab active" onclick="switchInfoTab('media')">Media</div>
+            <div class="ci-tab" onclick="switchInfoTab('docs')">Docs</div>
+            <div class="ci-tab" onclick="switchInfoTab('links')">Links</div>
+        </div>
+
+        <div id="tab-content-media" class="ci-tab-section active">
+            <div class="ci-media-grid" id="ci-media-grid"></div>
+        </div>
+
+        <div id="tab-content-docs" class="ci-tab-section">
+            <div class="ci-list" id="ci-docs-list"></div>
+        </div>
+
+        <div id="tab-content-links" class="ci-tab-section">
+            <div class="ci-list" id="ci-links-list"></div>
+        </div>
+
+    </div>
+</div>
+
+        <div id="view-chat-room" class="view slide-view">
+            
+            <header class="chat-header">
+                <button class="icon-btn-ghost" onclick="closeChatRoom()">
+                    <span class="material-icons-round">arrow_back</span>
+                    
+                </button>
+                <div class="header-user-info">
+    <div class="header-avatar" id="header-avatar-display" onclick="closeChatRoom()"></div>
+    
+    <div class="header-text" onclick="openChatInfo()" style="cursor: pointer; flex: 1;">
+        <h3 id="header-title">User Name</h3>
+        <span class="status-subtitle" id="header-status">Offline</span>
+    </div>
+</div>
+
+               <button class="icon-btn-ghost" onclick="toggleChatMenu()">
+    <span class="material-icons-round">more_vert</span>
+</button>
+
+            </header>
+<div id="header-msg-selection" class="chat-header selection-header" style="display: none;">
+    <div style="display:flex; align-items:center;">
+        <button class="icon-btn-ghost" onclick="exitMsgSelectionMode()">
+            <span class="material-icons-round" style="color: white;">arrow_back</span>
+        </button>
+        <span id="msg-selection-count" style="color: white; font-weight: 600; font-size: 18px; margin-left: 10px;">0</span>
+    </div>
+    
+    <div style="display: flex; gap: 5px; margin-left: auto;">
+        <button id="btn-msg-view" class="icon-btn-ghost" onclick="openTextMode()">
+            <span class="material-icons-round" style="color: white;">visibility</span>
+        </button>
+        <button id="btn-msg-edit" class="icon-btn-ghost" onclick="openEditMessageModal()">
+            <span class="material-icons-round" style="color: white;">edit</span>
+        </button>
+        <button id="btn-msg-delete" class="icon-btn-ghost" onclick="deleteSelectedMessages()">
+            <span class="material-icons-round" style="color: white;">delete</span>
+        </button>
+    </div>
+</div>
+
+
+<button id="btn-scroll-bottom" class="scroll-bottom-btn" onclick="scrollToBottomSmooth()">
+    <svg xmlns="http://www.w3.org/2000/svg" 
+     width="26" height="26" 
+     viewBox="0 0 24 24" 
+     fill="none" 
+     stroke="currentColor" 
+     stroke-width="2" 
+     stroke-linecap="round" 
+     stroke-linejoin="round">
+  <polyline points="7 8 12 13 17 8"></polyline>
+  <polyline points="7 13 12 18 17 13"></polyline>
+</svg>
+</button>
+
+
+            <div id="messages-container"></div>
+            
+            
+            <div id="audio-recording-ui" class="audio-recording-ui" style="display: none;">
+                <span class="recording-dot"></span>
+                <span id="recording-timer">00:00</span>
+                <button class="cancel-record-btn" onclick="cancelAudioRecord()">Cancel</button>
+                <button class="send-record-btn" onclick="stopAndSendAudio()">
+                    <span class="material-icons-round">send</span>
+                </button>
+            </div>
+
+            <input type="file" id="file-input-doc" hidden onchange="handleFileSelect(this.files)">
+            <input type="file" id="file-input-img" hidden accept="image/*" onchange="handleFileSelect(this.files)">
+            <input type="file" id="file-input-video" hidden accept="video/*" onchange="handleFileSelect(this.files)">
+            <input type="file" id="file-input-cam" hidden accept="image/*" capture="environment" onchange="handleFileSelect(this.files)">
+
+            <div class="chat-input-area">
+    <div class="input-pill">
+        <button class="attach-btn" onclick="toggleAttachmentDrawer()">
+            <span class="material-icons-round">add</span>
+        </button>
+        
+        <textarea id="msg-input" placeholder="Message..." rows="1" oninput="autoResizeTextarea()"></textarea>
+
+        <button id="btn-expand-input" class="expand-input-btn" onclick="openExpandedEditor()">
+            <span class="material-icons-round">open_in_full</span>
+        </button>
+    </div>
+    <button class="main-send-btn" onclick="sendMessage()">
+        <span class="material-icons-round">send</span>
+    </button>
+</div>
+
+<div id="view-editor-mode" class="editor-mode-overlay">
+    <div class="editor-header-toolbar">
+        <div class="format-tools">
+            <button class="format-btn" onclick="applyRichFormat('bold')">
+                <span class="material-icons-round">format_bold</span>
+            </button>
+            <button class="format-btn" onclick="applyRichFormat('italic')">
+                <span class="material-icons-round">format_italic</span>
+            </button>
+            <button class="format-btn" onclick="applyRichFormat('strikeThrough')">
+                <span class="material-icons-round">strikethrough_s</span>
+            </button>
+            <button class="format-btn" onclick="applyRichFormat('insertHTML', '<tt>' + document.getSelection() + '</tt>')">
+                <span class="material-icons-round">data_object</span>
+            </button>
+        </div>
+
+        <button class="shrink-btn" onclick="closeExpandedEditor()">
+            <span class="material-icons-round" style="transform: rotate(45deg);">unfold_less</span>
+        </button>
+    </div>
+
+    <div id="editor-input-rich" class="rich-input-area" contenteditable="true" placeholder="Type your message here..."></div>
+
+    <button class="editor-send-btn" onclick="sendFromEditor()">
+        <span class="material-icons-round">send</span>
+    </button>
+</div>
+
+
+
+        </div>
+<div id="view-settings" class="view slide-view">
+    
+    <header class="chat-header">
+        <button class="icon-btn-ghost" onclick="closeSettings()">
+            <span class="material-icons-round" style="color: #fff;">arrow_back</span>
+        </button>
+        <div class="header-text" style="margin-left: 10px;">
+            <h3 style="color: #fff; margin: 0; font-size: 18px;">Settings</h3>
+        </div>
+        
+    </header>
+
+    <div class="settings-container-full">
+        
+        <div class="settings-section-title">PREFERENCES</div>
+        <div class="settings-card">
+            <div class="setting-list-item">
+                <div class="setting-text-col">
+                    <span class="st-title">Conversation Tones</span>
+                    <span class="st-desc">Play sounds for incoming and outgoing messages.</span>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="set-sound" onchange="toggleAppSetting('sound', this.checked)">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+        </div>
+
+        <div class="settings-section-title">MEDIA AUTO-DOWNLOAD</div>
+        <div class="settings-card">
+            <div class="setting-list-item">
+                <span class="st-title">Photos</span>
+                <label class="switch">
+                    <input type="checkbox" id="set-dl-img" onchange="toggleAppSetting('dl_img', this.checked)">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+
+            <div class="setting-list-item">
+                <span class="st-title">Videos</span>
+                <label class="switch">
+                    <input type="checkbox" id="set-dl-video" onchange="toggleAppSetting('dl_video', this.checked)">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+
+            <div class="setting-list-item">
+                <span class="st-title">Documents</span>
+                <label class="switch">
+                    <input type="checkbox" id="set-dl-file" onchange="toggleAppSetting('dl_file', this.checked)">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+        </div>
+
+        <div class="settings-section-title">ACCOUNT</div>
+        <div class="settings-card">
+            <div class="setting-list-item clickable" onclick="copyMyId()">
+                <div class="setting-text-col">
+                    <span class="st-title">My ID</span>
+                    <span class="st-desc" id="settings-my-id">...</span>
+                </div>
+                <span class="material-icons-round" style="color:var(--primary);">content_copy</span>
+            </div>
+
+            <div class="setting-list-item clickable" onclick="clearAllData()">
+                <div class="setting-text-col">
+                    <span class="st-title" style="color: #ff4b4b;">Reset Application</span>
+                    <span class="st-desc">Clear all data and logout</span>
+                </div>
+                <span class="material-icons-round" style="color: #ff4b4b;">delete_outline</span>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+
+    </main>
+    
+
+    <nav class="bottom-nav" id="main-nav">
+        <button class="nav-item active" onclick="switchMainTab('chat-list')">
+            <span class="material-icons-round">chat_bubble</span>
+            <span>Chats</span>
+        </button>
+        <button class="nav-item" onclick="switchMainTab('status')">
+            <span class="material-icons-round">account_circle</span>
+            <span>Profile</span>
+        </button>
+    </nav>
+
+   <div id="modal-add-contact" class="modal-overlay" onclick="toggleAddContactModal()">
+    <div class="modal-card" onclick="event.stopPropagation()">
+        <h3>New Chat</h3>
+        
+        <input type="number" id="input-friend-id" placeholder="10-digit ID (Required)" maxlength="10">
+        
+        <input type="text" id="input-friend-name" placeholder="Name (Optional)" style="margin-top: -5px;">
+        
+        <div class="modal-actions">
+            <button class="text-btn" onclick="toggleAddContactModal()">Close</button>
+            <button class="text-btn primary" onclick="addNewContact()">Connect</button>
+        </div>
+    </div>
+</div>
+
+   
+</div>
+<div id="media-viewer" class="media-viewer">
+        <div class="media-header">
+        <button class="icon-btn-ghost" onclick="closeMediaViewer()">
+            <span class="material-icons-round" style="color: white;">arrow_back</span>
+        </button>
+        
+        <h3 id="media-name" class="media-title">Filename</h3>
+        
+        <div class="menu-container" style="position: relative;">
+            
+            <button class="icon-btn-ghost" onclick="toggleMediaMenu()">
+                <span class="material-icons-round" style="color: white;">more_vert</span>
+            </button>
+            
+            <div id="media-menu-dropdown" class="media-dropdown">
+                <div onclick="shareMedia()">
+                    <span class="material-icons-round">share</span> Share
+                </div>
+                <div id="rotate-btn" onclick="rotateMedia()">
+                    <span class="material-icons-round">rotate_right</span> Rotate
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    
+    <div class="media-content-wrapper">
+        <img id="viewer-img" src="" style="display:none;">
+        
+        <div id="video-wrapper" style="display:none; position:relative; width:100%; height:100%; align-items:center; justify-content:center;">
+            <video id="viewer-video" src="" controls playsinline></video>
+            
+            <div class="speed-control-container">
+                <div class="speed-pill" id="speed-pill">
+                    <div class="speed-icon-label" onclick="expandSpeedControl()">
+                        <span class="material-icons-round">speed</span>
+                        <span>Speed</span>
+                    </div>
+                    <div class="speed-slider-area">
+                        <input type="range" id="speed-slider" min="0.5" max="2.0" step="0.25" value="1.0" onchange="changeVideoSpeed(this.value)" oninput="updateSpeedUI(this.value)">
+                        <span id="speed-val-display">1x</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div id="modal-rename" class="modal-overlay">
+    <div class="modal-card">
+        <h3>Rename Contact</h3>
+        <input type="text" id="input-rename" placeholder="Enter new name">
+        <div class="modal-actions">
+            <button class="text-btn" onclick="closeRenameModal()">Cancel</button>
+            <button class="text-btn primary" onclick="saveRenameContact()">Save</button>
+        </div>
+    </div>
+</div>
+<div id="transparent-backdrop" onclick="closeAllPopups()"></div>
+<div id="chat-menu" class="chat-menu">
+    <div class="chat-menu-item" onclick="clearCurrentChat()">
+        <span class="material-icons-round" style="color:#000">delete</span>
+        <span>Clear chat</span>
+    </div>
+</div>
+<div id="attachment-drawer" class="attachment-drawer">
+                <div class="drawer-grid">
+                    <div class="drawer-item" onclick="triggerInput('file-input-img')">
+                        <div class="drawer-icon color-purple"><span class="material-icons-round">image</span></div>
+                        <span>Image</span>
+                    </div>
+                    <div class="drawer-item" onclick="triggerInput('file-input-video')">
+                        <div class="drawer-icon color-blue"><span class="material-icons-round">videocam</span></div>
+                        <span>Video</span>
+                    </div>
+                    <div class="drawer-item" onclick="triggerInput('file-input-doc')">
+                        <div class="drawer-icon color-orange"><span class="material-icons-round">description</span></div>
+                        <span>File</span>
+                    </div>
+                    <div class="drawer-item" onclick="toggleAudioRecord()">
+                        <div class="drawer-icon color-red" id="mic-icon-drawer"><span class="material-icons-round">mic</span></div>
+                        <span id="mic-text-drawer">Audio</span>
+                    </div>
+                    <div class="drawer-item" onclick="triggerInput('file-input-cam')">
+                        <div class="drawer-icon color-green"><span class="material-icons-round">camera_alt</span></div>
+                        <span>Camera</span>
+                    </div>
+                </div>
+            </div>
+<div id="modal-edit-msg" class="modal-overlay">
+    <div class="modal-card">
+        <h3>Edit Message</h3>
+        <textarea id="input-edit-msg" rows="4" style="width:100%; border:1px solid #ddd; padding:10px; border-radius:10px; resize:none;"></textarea>
+        <div class="modal-actions">
+            <button class="text-btn" onclick="document.getElementById('modal-edit-msg').classList.remove('open')">Cancel</button>
+            <button class="text-btn primary" onclick="saveEditedMessage()">Save</button>
+        </div>
+    </div>
+</div>
+<div id="view-text-mode" class="text-mode-overlay">
+    <div class="text-mode-header">
+        <button class="icon-btn-ghost" onclick="closeTextMode()">
+            <span class="material-icons-round" style="color: var(--primary); font-size: 28px;">arrow_back</span>
+        </button>
+    </div>
+    <div id="text-mode-content" class="text-mode-content">
+        </div>
+</div>
+<div id="view-editor-mode" class="editor-mode-overlay">
+    <div class="editor-header-toolbar">
+        <div class="format-tools">
+            <button class="format-btn" onclick="applyTextFormat('bold')">
+                <span class="material-icons-round">format_bold</span>
+            </button>
+            <button class="format-btn" onclick="applyTextFormat('italic')">
+                <span class="material-icons-round">format_italic</span>
+            </button>
+            <button class="format-btn" onclick="applyTextFormat('strike')">
+                <span class="material-icons-round">strikethrough_s</span>
+            </button>
+            <button class="format-btn" onclick="applyTextFormat('mono')">
+                <span class="material-icons-round">data_object</span>
+            </button>
+        </div>
+
+        <button class="shrink-btn" onclick="closeExpandedEditor()">
+            <span class="material-icons-round" style="transform: rotate(45deg);">unfold_less</span>
+        </button>
+    </div>
+
+    <textarea id="editor-input-large" placeholder="Type your message here..."></textarea>
+
+    <button class="editor-send-btn" onclick="sendFromEditor()">
+        <span class="material-icons-round">send</span>
+    </button>
+</div>
+<div id="file-sheet-backdrop" class="sheet-backdrop" onclick="closeFileSheet()"></div>
+<div id="file-action-sheet" class="action-sheet">
+    <div class="sheet-handle"></div>
+    
+    <div class="sheet-header">
+        <div id="sheet-file-icon" class="sheet-icon-large">
+            <span class="material-icons-round">description</span>
+        </div>
+        <div class="sheet-meta">
+            <h3 id="sheet-filename">File Name</h3>
+            <p id="sheet-filesize">Size • Type</p>
+        </div>
+    </div>
+
+    <div class="sheet-actions">
+        <button class="sheet-btn primary" onclick="downloadCurrentFile()">
+            <span class="material-icons-round">download</span>
+            Open / Download
+        </button>
+        <button class="sheet-btn secondary" onclick="shareCurrentFile()">
+            <span class="material-icons-round">share</span>
+            Share File
+        </button>
+    </div>
+</div>
+
+    <script src="chat2.js"></script>
+</body>
+</html>
